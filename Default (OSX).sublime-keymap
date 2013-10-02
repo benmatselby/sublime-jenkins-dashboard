@@ -1,0 +1,3 @@
+[
+    { "keys": ["alt+super+j"], "command": "show_jenkins_dashboard" }
+]

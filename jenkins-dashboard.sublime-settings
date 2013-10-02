@@ -1,0 +1,12 @@
+{
+    // Plugin settings
+
+    // Turn the debug output on/off
+    "show_debug": false,
+
+    // The URL to the Jenkins application
+    // Examples being:
+    //   https://ci.jenkins-ci.org/
+    //   https://some-url.com:8080/
+    "jenkins_url": "",
+}

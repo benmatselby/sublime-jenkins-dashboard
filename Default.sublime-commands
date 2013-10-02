@@ -1,0 +1,10 @@
+[
+    {
+        "caption": "Jenkins Dashboard: Show Jobs",
+        "command": "show_jenkins_dashboard"
+    },
+    {
+        "caption": "Jenkins Dashboard: Build Job",
+        "command": "build_jenkins_job"
+    },
+]
