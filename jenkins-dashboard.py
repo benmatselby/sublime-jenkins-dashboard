@@ -71,12 +71,28 @@ class Jenkins():
             return build_report
 
         for job in dashboard_json['jobs']:
-            if job['color'].find('blue') >= 0:
+            if job['color'] == 'blue':
                 build_report.append([job['name'], 'SUCCESS'])
-            elif job['color'].find('red') >= 0:
-                build_report.append([job['name'], 'FAILURE'])
-            else:
+            elif job['color'] == 'blue_anime':
+                build_report.append([job['name'], 'SUCCESS - BUILDING'])
+            elif job['color'] == 'yellow':
                 build_report.append([job['name'], 'UNSTABLE'])
+            elif job['color'] == 'yellow_anime':
+                build_report.append([job['name'], 'UNSTABLE - BUILDING'])
+            elif job['color'] == 'red':
+                build_report.append([job['name'], 'FAILURE'])
+            elif job['color'] == 'red_anime':
+                build_report.append([job['name'], 'FAILURE - BUILDING'])
+            elif job['color'] == 'aborted':
+                build_report.append([job['name'], 'ABORTED'])
+            elif job['color'] == 'aborted_anime':
+                build_report.append([job['name'], 'ABORTED - BUILDING'])
+            elif job['color'] == 'disabled':
+                build_report.append([job['name'], 'DISABLED'])
+            elif job['color'] == 'notbuilt':
+                build_report.append([job['name'], 'NO BUILDS'])
+            else:
+                build_report.append([job['name'], 'UNKNOWN'])
 
         return build_report
 
