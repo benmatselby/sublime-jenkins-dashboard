@@ -1,6 +1,10 @@
 Sublime Jenkins Dashboard
 =========================
 
+1.1.1
+-----
+* Bug fix for the settings default settings file location
+
 1.1.0
 -----
 * Added more status types for the builds based on more testing (Used https://builds.apache.org/ as a larger data set)
