@@ -29,7 +29,7 @@
                         [
                             {
                                 "command": "open_file",
-                                "args": {"file": "${packages}/JenkinsDashboard/jenkins-dashboard.sublime-settings"},
+                                "args": {"file": "${packages}/Jenkins Dashboard/jenkins-dashboard.sublime-settings"},
                                 "caption": "Settings – Default"
                             },
                             {
