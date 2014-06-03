@@ -7,10 +7,14 @@ This plugin aims to allow you to interact with a Jenkins installation from withi
 Installation
 ------------
 
-For information on how to install this plugin, please go [here](http://www.soulbroken.co.uk/code/sublimejenkinsdashboard/#installation)
+* Open Atom
+* Go to Preferences
+* Go to Packages on the left hand side
+* Search for “Jenkins Dashboard”
+* Click Install
 
 
 Configuration
 -------------
 
-For information on how to configure this plugin, please go [here](http://www.soulbroken.co.uk/code/sublimejenkinsdashboard/#configuration)
+To configure this plugin, open up the Preferences and scroll down to “Jenkins Dashboard”. You will then need to supply the Jenkins URL in order to retrieve data.
