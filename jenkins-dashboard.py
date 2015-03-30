@@ -1,4 +1,5 @@
 import json
+import threading
 import sys
 import os
 import urllib
@@ -123,6 +124,39 @@ class Jenkins():
         except urllib.error.URLError as e:
             return str(e.reason)
 
+    def get_last_job(self, jobName):
+        try:
+            console_url = pref.jenkins_url + "/job/" + jobName + "/lastBuild/api/json"
+
+            debug_message("POST: " + console_url)
+            req = urllib.request.Request(console_url)
+            data = urllib.parse.urlencode({'token': 1}) # Config needed here
+            data = data.encode('utf-8')
+            response = urllib.request.urlopen(req, data)
+
+            data = json.loads(response.read().decode('utf-8'))
+
+            return data
+        except urllib.error.URLError as e:
+            return "HTTP Status Code: " + str(e.code) + "\nHTTP Status Reason: " + e.reason
+
+
+    def get_last_output(self, jobName):
+        try:
+            console_url = pref.jenkins_url + "/job/" + jobName + "/lastBuild/consoleText"
+
+            debug_message("POST: " + console_url)
+            req = urllib.request.Request(console_url)
+            data = urllib.parse.urlencode({'token': 1}) # Config needed here
+            data = data.encode('utf-8')
+            response = urllib.request.urlopen(req, data)
+
+            data = str(response.read().decode('utf-8'))
+            return data
+        except urllib.error.URLError as e:
+            return "HTTP Status Code: " + str(e.code) + "\nHTTP Status Reason: " + e.reason
+
+
 
 class BaseJenkinsDashboardCommand(sublime_plugin.TextCommand):
     """Base command class for Jenkins Dashboard"""
@@ -191,8 +225,38 @@ class BuildJenkinsJobCommand(BaseJenkinsDashboardCommand):
         self.build_report = cmd.get_dashboard()
         self.show_quick_panel(self.build_report)
 
-    def on_quick_panel_done(self, picked):
+    def on_quick_panel_done(self, p):
         cmd = Jenkins()
-        http_response_string = cmd.build_job(self.build_report[picked][0])
-        self.render_jenkins_information(http_response_string)
+        picked = self.build_report[p][0]
+        prevJob = cmd.get_last_job(picked) # to check if new job was started
+        http_response_string = cmd.build_job(picked)
+
+        view = self.view.window().new_file()
+        threading.Timer(1, self.output, [view, cmd, picked, prevJob.get('number')]).start()
+
         return
+
+    def output(self, view, cmd, picked, prevJobNumber, **args):
+        job = cmd.get_last_job(picked)
+        if job.get('number') == prevJobNumber:
+            # job don't start yet
+            threading.Timer(1, self.output, [view, cmd, picked, prevJobNumber]).start()
+            return
+
+        console_output = cmd.get_last_output(picked)
+        content = 'Job: ' + job.get('fullDisplayName') + '\n\n' + console_output
+
+        sys.stderr.write("job is building " + str(job.get('building')) + "\n")
+
+        if job.get('building'):
+            threading.Timer(1, self.output, [view, cmd, picked, prevJobNumber]).start()
+        else:
+            content = content + '\n\nDone with ' + job.get('result')
+
+        view.run_command('output', {'console_output': content})
+
+class OutputCommand(sublime_plugin.TextCommand):
+    def run(self, edit, **args):
+        sizeBefore = self.view.size()
+        self.view.insert(edit, sizeBefore, args.get('console_output')[sizeBefore:])
+        self.view.show(self.view.size())
