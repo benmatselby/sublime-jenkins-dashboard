@@ -131,9 +131,7 @@ class Jenkins():
 
             debug_message("POST: " + console_url)
             req = urllib.request.Request(console_url)
-            data = urllib.parse.urlencode({'token': 1}) # Config needed here
-            data = data.encode('utf-8')
-            response = urllib.request.urlopen(req, data)
+            response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode('utf-8'))
 
             return data
