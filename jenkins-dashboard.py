@@ -1,4 +1,5 @@
 import json
+import threading
 import sys
 import os
 import urllib
@@ -106,9 +107,10 @@ class Jenkins():
             data = data.encode('utf-8')
             response = urllib.request.urlopen(req, data)
 
-            return "HTTP Status Code: " + str(response.status)
+            return str(response.status)
+
         except urllib.error.URLError as e:
-            return "HTTP Status Code: " + str(e.code) + "\nHTTP Status Reason: " + e.reason
+            return str(e.code)
 
     def get_job_report(self, jobName):
         try:
@@ -122,6 +124,33 @@ class Jenkins():
             return json.dumps(job_json, indent=4, separators=(',', ': '))
         except urllib.error.URLError as e:
             return str(e.reason)
+
+    def get_last_job(self, jobName):
+        try:
+            console_url = pref.jenkins_url + "/job/" + jobName + "/lastBuild/api/json"
+
+            debug_message("POST: " + console_url)
+            req = urllib.request.Request(console_url)
+            response = urllib.request.urlopen(req)
+            data = json.loads(response.read().decode('utf-8'))
+            return data
+        except urllib.error.URLError as e:
+            return "HTTP Status Code: " + str(e.code) + "\nHTTP Status Reason: " + e.reason
+
+
+    def get_last_output(self, jobName):
+        try:
+            console_url = pref.jenkins_url + "/job/" + jobName + "/lastBuild/consoleText"
+
+            debug_message("POST: " + console_url)
+            req = urllib.request.Request(console_url)
+            response = urllib.request.urlopen(req)
+
+            data = str(response.read().decode('utf-8'))
+            return data
+        except urllib.error.URLError as e:
+            return "HTTP Status Code: " + str(e.code) + "\nHTTP Status Reason: " + e.reason
+
 
 
 class BaseJenkinsDashboardCommand(sublime_plugin.TextCommand):
@@ -191,8 +220,38 @@ class BuildJenkinsJobCommand(BaseJenkinsDashboardCommand):
         self.build_report = cmd.get_dashboard()
         self.show_quick_panel(self.build_report)
 
-    def on_quick_panel_done(self, picked):
+    def on_quick_panel_done(self, p):
         cmd = Jenkins()
-        http_response_string = cmd.build_job(self.build_report[picked][0])
-        self.render_jenkins_information(http_response_string)
+        picked = self.build_report[p][0]
+        prevJob = cmd.get_last_job(picked) # to check if new job was started
+        http_response_code = cmd.build_job(picked)
+
+        # There may be a failure scenario, so we don't want to start kicking off a timer
+        if http_response_code[:1] == '2':
+            view = self.view.window().new_file()
+            threading.Timer(1, self.output, [view, cmd, picked, prevJob.get('number')]).start()
+        else:
+            debug_message('Response code for build command was "' + http_response_code + '" therefore not polling for updates')
+
         return
+
+    def output(self, view, cmd, picked, prevJobNumber, **args):
+        job = cmd.get_last_job(picked)
+        if job.get('number') == prevJobNumber:
+            # job don't start yet
+            threading.Timer(1, self.output, [view, cmd, picked, prevJobNumber]).start()
+            return
+
+        console_output = cmd.get_last_output(picked)
+        content = 'Job: ' + job.get('fullDisplayName') + '\n\n' + console_output
+
+        debug_message("Job building status: " + str(job.get('building')))
+
+        if job.get('building'):
+            threading.Timer(1, self.output, [view, cmd, picked, prevJobNumber]).start()
+        else:
+            content = content + '\n\nDone with ' + job.get('result')
+
+        view.run_command('output', {'console_output': content})
+
+
