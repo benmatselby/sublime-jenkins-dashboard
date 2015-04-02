@@ -7,11 +7,7 @@ This plugin aims to allow you to interact with a Jenkins installation from withi
 Installation
 ------------
 
-* Open Atom
-* Go to Preferences
-* Go to Packages on the left hand side
-* Search for “Jenkins Dashboard”
-* Click Install
+Use Sublime Text’s Package Control (Preferences -> Package Control -> Install Package -> Jenkins Dashboard) to install this plugin. This is the recommended installation path.
 
 
 Configuration
