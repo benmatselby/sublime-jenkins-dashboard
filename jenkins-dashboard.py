@@ -107,9 +107,10 @@ class Jenkins():
             data = data.encode('utf-8')
             response = urllib.request.urlopen(req, data)
 
-            return "HTTP Status Code: " + str(response.status)
+            return str(response.status)
+
         except urllib.error.URLError as e:
-            return "HTTP Status Code: " + str(e.code) + "\nHTTP Status Reason: " + e.reason
+            return str(e.code)
 
     def get_job_report(self, jobName):
         try:
@@ -133,7 +134,6 @@ class Jenkins():
             data = urllib.parse.urlencode({'token': 1}) # Config needed here
             data = data.encode('utf-8')
             response = urllib.request.urlopen(req, data)
-
             data = json.loads(response.read().decode('utf-8'))
 
             return data
@@ -229,10 +229,14 @@ class BuildJenkinsJobCommand(BaseJenkinsDashboardCommand):
         cmd = Jenkins()
         picked = self.build_report[p][0]
         prevJob = cmd.get_last_job(picked) # to check if new job was started
-        http_response_string = cmd.build_job(picked)
+        http_response_code = cmd.build_job(picked)
 
-        view = self.view.window().new_file()
-        threading.Timer(1, self.output, [view, cmd, picked, prevJob.get('number')]).start()
+        # There may be a failure scenario, so we don't want to start kicking off a timer
+        if http_response_code[:1] == '2':
+            view = self.view.window().new_file()
+            threading.Timer(1, self.output, [view, cmd, picked, prevJob.get('number')]).start()
+        else:
+            debug_message('Response code for build command was "' + http_response_code + '" therefore not polling for updates')
 
         return
 
@@ -246,7 +250,7 @@ class BuildJenkinsJobCommand(BaseJenkinsDashboardCommand):
         console_output = cmd.get_last_output(picked)
         content = 'Job: ' + job.get('fullDisplayName') + '\n\n' + console_output
 
-        sys.stderr.write("job is building " + str(job.get('building')) + "\n")
+        debug_message("Job building status: " + str(job.get('building')) + "\n")
 
         if job.get('building'):
             threading.Timer(1, self.output, [view, cmd, picked, prevJobNumber]).start()
@@ -254,6 +258,7 @@ class BuildJenkinsJobCommand(BaseJenkinsDashboardCommand):
             content = content + '\n\nDone with ' + job.get('result')
 
         view.run_command('output', {'console_output': content})
+
 
 class OutputCommand(sublime_plugin.TextCommand):
     def run(self, edit, **args):
