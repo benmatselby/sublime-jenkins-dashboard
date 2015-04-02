@@ -133,7 +133,6 @@ class Jenkins():
             req = urllib.request.Request(console_url)
             response = urllib.request.urlopen(req)
             data = json.loads(response.read().decode('utf-8'))
-
             return data
         except urllib.error.URLError as e:
             return "HTTP Status Code: " + str(e.code) + "\nHTTP Status Reason: " + e.reason
@@ -145,9 +144,7 @@ class Jenkins():
 
             debug_message("POST: " + console_url)
             req = urllib.request.Request(console_url)
-            data = urllib.parse.urlencode({'token': 1}) # Config needed here
-            data = data.encode('utf-8')
-            response = urllib.request.urlopen(req, data)
+            response = urllib.request.urlopen(req)
 
             data = str(response.read().decode('utf-8'))
             return data
@@ -248,7 +245,7 @@ class BuildJenkinsJobCommand(BaseJenkinsDashboardCommand):
         console_output = cmd.get_last_output(picked)
         content = 'Job: ' + job.get('fullDisplayName') + '\n\n' + console_output
 
-        debug_message("Job building status: " + str(job.get('building')) + "\n")
+        debug_message("Job building status: " + str(job.get('building')))
 
         if job.get('building'):
             threading.Timer(1, self.output, [view, cmd, picked, prevJobNumber]).start()
@@ -258,8 +255,3 @@ class BuildJenkinsJobCommand(BaseJenkinsDashboardCommand):
         view.run_command('output', {'console_output': content})
 
 
-class OutputCommand(sublime_plugin.TextCommand):
-    def run(self, edit, **args):
-        sizeBefore = self.view.size()
-        self.view.insert(edit, sizeBefore, args.get('console_output')[sizeBefore:])
-        self.view.show(self.view.size())
