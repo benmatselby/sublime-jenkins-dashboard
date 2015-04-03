@@ -9,4 +9,10 @@
     //   https://ci.jenkins-ci.org/
     //   https://some-url.com:8080/
     "jenkins_url": "",
+    
+    // username to login to jenkins
+    "username": "",
+    
+    // password to login to jenkins
+    "password": "", 
 }
