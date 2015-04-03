@@ -1,4 +1,5 @@
 import json
+import base64
 import threading
 import sys
 import os
@@ -11,6 +12,8 @@ class Pref:
     keys = [
         "show_debug",
         "jenkins_url",
+        "username",
+        "password",
     ]
 
     def load(self):
@@ -50,20 +53,47 @@ def debug_message(msg):
 
 class Jenkins():
     """Jenkins Controller class"""
+    def __init__(self):
+        if pref.username and pref.password:
+            self.auth = self.auth_headers(pref.username, pref.password)
+        else :
+            self.auth = None
+        
+    def auth_headers(self, username, password):
+        '''Simple implementation of HTTP Basic Authentication.
+        Returns the 'Authentication' header value.
+        '''
+        auth = '%s:%s' % (username, password)
+        auth = auth.encode('utf-8')
+        return b'Basic ' + base64.b64encode(auth)
+
+    def get_response(self, uri):
+        jenkins_url = pref.jenkins_url + uri
+        debug_message("GET: " + jenkins_url)
+
+        req = urllib.request.Request(jenkins_url)
+        data = urllib.parse.urlencode({'token': 1}) # Config needed here
+        data = data.encode('utf-8')
+
+        if self.auth :
+            req.add_header('Authorization', self.auth)
+
+        response = urllib.request.urlopen(req, data)
+        
+        return response
+
     def get_dashboard(self):
         build_report = []
         try:
-            jenkins_url = pref.jenkins_url + "/api/json"
-            debug_message("GET: " + jenkins_url)
-
-            req = urllib.request.Request(jenkins_url)
-            response = urllib.request.urlopen(req)
+            response = self.get_response("/api/json")
 
             jenkins_dashboard = response.read().decode('utf-8')
             debug_message(jenkins_dashboard)
         except urllib.error.URLError as e:
             debug_message("HTTP Error: " + str(e.code))
-            return build_report
+            if e.code == 403:
+                return [['Error', str(e.code) + ' Authentication required']]
+            return [['Error', str(e.code)]]
 
         try:
             dashboard_json = json.loads(jenkins_dashboard)
@@ -99,25 +129,19 @@ class Jenkins():
 
     def build_job(self, jobName):
         try:
-            jenkins_url = pref.jenkins_url + "/job/" + jobName + "/build"
-            debug_message("POST: " + jenkins_url)
-
-            req = urllib.request.Request(jenkins_url)
-            data = urllib.parse.urlencode({'token': 1}) # Config needed here
-            data = data.encode('utf-8')
-            response = urllib.request.urlopen(req, data)
-
+            response = self.get_response("/job/" + jobName + "/build")
+            
+            debug_message(str(response.status))
+            
             return "HTTP Status Code: " + str(response.status)
+            return True
         except urllib.error.URLError as e:
-            return "HTTP Status Code: " + str(e.code) + "\nHTTP Status Reason: " + e.reason
+            debug_message("HTTP Status Code: " + str(e.code) + "\nHTTP Status Reason: " + e.reason)
+            return False
 
     def get_job_report(self, jobName):
         try:
-            jenkins_url = pref.jenkins_url + "/job/" + jobName + "/api/json"
-            debug_message("GET: " + jenkins_url)
-
-            req = urllib.request.Request(jenkins_url)
-            response = urllib.request.urlopen(req)
+            response = self.get_response("/job/" + jobName + "/api/json")
             job_json = json.loads(response.read().decode('utf-8'))
 
             return json.dumps(job_json, indent=4, separators=(',', ': '))
@@ -126,13 +150,7 @@ class Jenkins():
 
     def get_last_job(self, jobName):
         try:
-            console_url = pref.jenkins_url + "/job/" + jobName + "/lastBuild/api/json"
-
-            debug_message("POST: " + console_url)
-            req = urllib.request.Request(console_url)
-            data = urllib.parse.urlencode({'token': 1}) # Config needed here
-            data = data.encode('utf-8')
-            response = urllib.request.urlopen(req, data)
+            response = self.get_response("/job/" + jobName + "/lastBuild/api/json")
 
             data = json.loads(response.read().decode('utf-8'))
 
@@ -143,13 +161,7 @@ class Jenkins():
 
     def get_last_output(self, jobName):
         try:
-            console_url = pref.jenkins_url + "/job/" + jobName + "/lastBuild/consoleText"
-
-            debug_message("POST: " + console_url)
-            req = urllib.request.Request(console_url)
-            data = urllib.parse.urlencode({'token': 1}) # Config needed here
-            data = data.encode('utf-8')
-            response = urllib.request.urlopen(req, data)
+            response = self.get_response("/job/" + jobName + "/lastBuild/consoleText")
 
             data = str(response.read().decode('utf-8'))
             return data
@@ -226,30 +238,54 @@ class BuildJenkinsJobCommand(BaseJenkinsDashboardCommand):
         self.show_quick_panel(self.build_report)
 
     def on_quick_panel_done(self, p):
+        if p == -1:
+            return
+            
         cmd = Jenkins()
         picked = self.build_report[p][0]
+        if picked == 'Error':
+            debug_message(picked)
+            return
+
         prevJob = cmd.get_last_job(picked) # to check if new job was started
-        http_response_string = cmd.build_job(picked)
-
+        is_building = cmd.build_job(picked)
+        
         view = self.view.window().new_file()
-        threading.Timer(1, self.output, [view, cmd, picked, prevJob.get('number')]).start()
-
+        if is_building:
+            self.numberOfTries = 20
+            self.output(view, cmd, picked, prevJob.get('number'))
+        else:
+            view.run_command('output', {'console_output': 'something went wrong, you can debug it with setting debut to true'})
         return
 
-    def output(self, view, cmd, picked, prevJobNumber, **args):
+    def output(self, view, cmd, picked, prevJobNumber=None, **args):
         job = cmd.get_last_job(picked)
         if job.get('number') == prevJobNumber:
             # job don't start yet
+            view.run_command('clear')
+            if not hasattr(self, 'dots') or self.dots == '...':
+                self.dots = ''
+            self.dots += '.'
+            view.run_command('output', {'console_output': 'waiting fot job to build' + self.dots})
+            self.numberOfTries -= 1
+            if self.numberOfTries == 0:
+                view.run_command('clear')
+                view.run_command('output', {'console_output': 'Something wend wrong, job can\'t start'})
+                return
             threading.Timer(1, self.output, [view, cmd, picked, prevJobNumber]).start()
+            
             return
+
+        if prevJobNumber:
+            view.run_command('clear')
 
         console_output = cmd.get_last_output(picked)
         content = 'Job: ' + job.get('fullDisplayName') + '\n\n' + console_output
 
-        sys.stderr.write("job is building " + str(job.get('building')) + "\n")
+        debug_message("job is building " + str(job.get('building')) + "\n")
 
         if job.get('building'):
-            threading.Timer(1, self.output, [view, cmd, picked, prevJobNumber]).start()
+            threading.Timer(1, self.output, [view, cmd, picked]).start()
         else:
             content = content + '\n\nDone with ' + job.get('result')
 
@@ -260,3 +296,8 @@ class OutputCommand(sublime_plugin.TextCommand):
         sizeBefore = self.view.size()
         self.view.insert(edit, sizeBefore, args.get('console_output')[sizeBefore:])
         self.view.show(self.view.size())
+        
+class ClearCommand(sublime_plugin.TextCommand):
+    def run(self, edit):
+        sizeBefore = self.view.size()
+        self.view.erase(edit, sublime.Region(0, sizeBefore))
