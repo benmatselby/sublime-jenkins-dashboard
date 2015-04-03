@@ -240,11 +240,11 @@ class BuildJenkinsJobCommand(BaseJenkinsDashboardCommand):
             
         cmd = Jenkins()
         picked = self.build_report[p][0]
-
+        
         if picked == 'Error':
             debug_message(picked)
             return
-
+        
         prevJob = cmd.get_last_job(picked) # to check if new job was started
         is_building = cmd.build_job(picked)
         
