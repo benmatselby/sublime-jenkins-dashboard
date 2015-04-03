@@ -245,7 +245,7 @@ class BuildJenkinsJobCommand(BaseJenkinsDashboardCommand):
         console_output = cmd.get_last_output(picked)
         content = 'Job: ' + job.get('fullDisplayName') + '\n\n' + console_output
 
-        debug_message("Job building status: " + str(job.get('building')))
+        debug_message(job.get('fullDisplayName') + " build status: " + str(job.get('building')))
 
         if job.get('building'):
             threading.Timer(1, self.output, [view, cmd, picked, prevJobNumber]).start()
@@ -254,4 +254,8 @@ class BuildJenkinsJobCommand(BaseJenkinsDashboardCommand):
 
         view.run_command('output', {'console_output': content})
 
-
+class OutputCommand(sublime_plugin.TextCommand):
+    def run(self, edit, **args):
+        sizeBefore = self.view.size()
+        self.view.insert(edit, sizeBefore, args.get('console_output')[sizeBefore:])
+        self.view.show(self.view.size())
