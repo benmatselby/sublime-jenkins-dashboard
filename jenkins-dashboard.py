@@ -58,7 +58,7 @@ class Jenkins():
             self.auth = self.auth_headers(pref.username, pref.password)
         else :
             self.auth = None
-        
+
     def auth_headers(self, username, password):
         '''Simple implementation of HTTP Basic Authentication.
         Returns the 'Authentication' header value.
@@ -79,7 +79,7 @@ class Jenkins():
             req.add_header('Authorization', self.auth)
 
         response = urllib.request.urlopen(req, data)
-        
+
         return response
 
     def get_dashboard(self):
@@ -98,7 +98,7 @@ class Jenkins():
         try:
             dashboard_json = json.loads(jenkins_dashboard)
         except:
-            debug_message("Unable to parse the jenkins json response")
+            debug_message("Unable to parse the Jenkins json response")
             return build_report
 
         for job in dashboard_json['jobs']:
@@ -130,10 +130,7 @@ class Jenkins():
     def build_job(self, jobName):
         try:
             response = self.get_response("/job/" + jobName + "/build")
-            
-            debug_message(str(response.status))
-            
-            return "HTTP Status Code: " + str(response.status)
+            debug_message("HTTP Status Code: " + str(response.status))
             return True
         except urllib.error.URLError as e:
             debug_message("HTTP Status Code: " + str(e.code) + "\nHTTP Status Reason: " + e.reason)
@@ -143,7 +140,6 @@ class Jenkins():
         try:
             response = self.get_response("/job/" + jobName + "/api/json")
             job_json = json.loads(response.read().decode('utf-8'))
-
             return json.dumps(job_json, indent=4, separators=(',', ': '))
         except urllib.error.URLError as e:
             return str(e.reason)
@@ -237,23 +233,23 @@ class BuildJenkinsJobCommand(BaseJenkinsDashboardCommand):
     def on_quick_panel_done(self, p):
         if p == -1:
             return
-            
+
         cmd = Jenkins()
         picked = self.build_report[p][0]
-        
+
         if picked == 'Error':
             debug_message(picked)
             return
-        
+
         prevJob = cmd.get_last_job(picked) # to check if new job was started
         is_building = cmd.build_job(picked)
-        
+
         view = self.view.window().new_file()
         if is_building:
             self.numberOfTries = 20
             self.output(view, cmd, picked, prevJob.get('number'))
         else:
-            view.run_command('output', {'console_output': 'something went wrong, you can debug it with setting debut to true'})
+            view.run_command('output', {'console_output': 'Something went wrong, you can debug it with setting "show_debug" to true'})
         return
 
     def output(self, view, cmd, picked, prevJobNumber=None, **args):
@@ -264,14 +260,14 @@ class BuildJenkinsJobCommand(BaseJenkinsDashboardCommand):
             if not hasattr(self, 'dots') or self.dots == '...':
                 self.dots = ''
             self.dots += '.'
-            view.run_command('output', {'console_output': 'waiting fot job to build' + self.dots})
+            view.run_command('output', {'console_output': 'Waiting for the job to build' + self.dots})
             self.numberOfTries -= 1
             if self.numberOfTries == 0:
                 view.run_command('clear')
-                view.run_command('output', {'console_output': 'Something wend wrong, job can\'t start'})
+                view.run_command('output', {'console_output': 'Something went wrong, the job cannot start'})
                 return
             threading.Timer(1, self.output, [view, cmd, picked, prevJobNumber]).start()
-            
+
             return
 
         if prevJobNumber:
@@ -280,7 +276,7 @@ class BuildJenkinsJobCommand(BaseJenkinsDashboardCommand):
         console_output = cmd.get_last_output(picked)
         content = 'Job: ' + job.get('fullDisplayName') + '\n\n' + console_output
 
-        debug_message("job is building " + str(job.get('building')) + "\n")
+        debug_message(job.get('fullDisplayName') + " build status: " + str(job.get('building')) + "\n")
 
         if job.get('building'):
             threading.Timer(1, self.output, [view, cmd, picked]).start()
@@ -294,7 +290,7 @@ class OutputCommand(sublime_plugin.TextCommand):
         sizeBefore = self.view.size()
         self.view.insert(edit, sizeBefore, args.get('console_output')[sizeBefore:])
         self.view.show(self.view.size())
-        
+
 class ClearCommand(sublime_plugin.TextCommand):
     def run(self, edit):
         sizeBefore = self.view.size()
