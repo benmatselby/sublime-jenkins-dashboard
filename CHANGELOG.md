@@ -1,6 +1,10 @@
 Sublime Jenkins Dashboard
 =========================
 
+1.3.0
+-----
+* Ability to use Basic Auth with Jenkins. Thanks to [Grzegorz Klimek](https://github.com/kfiku) for the patch..
+
 1.2.1
 -----
 * Fixed display issue for build report
