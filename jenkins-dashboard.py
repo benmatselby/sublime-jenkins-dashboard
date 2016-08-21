@@ -139,8 +139,8 @@ class Jenkins():
     def get_job_report(self, jobName):
         try:
             response = self.get_response("/job/" + jobName + "/api/json")
-            job_json = json.loads(response.read().decode('utf-8'))
-            return json.dumps(job_json, indent=4, separators=(',', ': '))
+            data = json.loads(response.read().decode('utf-8'))
+            return data
         except urllib.error.URLError as e:
             return str(e.reason)
 
@@ -178,14 +178,12 @@ class BaseJenkinsDashboardCommand(sublime_plugin.TextCommand):
         return
 
     def render_jenkins_information(self, output):
-        output_view = sublime.active_window().get_output_panel("jenkins-dashboard")
-        output_view.set_read_only(False)
-        output_view.run_command('output_helper', {'text': output})
+        view = self.view.window().new_file()
+        view.run_command('clear')
+        content = 'Job: ' +  output.get('name') + '\n\n'
+        content += json.dumps(output, indent=4, separators=(',', ': '))
 
-        output_view.sel().clear()
-        output_view.sel().add(sublime.Region(0))
-        output_view.set_read_only(True)
-        sublime.active_window().run_command("show_panel", {"panel": "output.jenkins-dashboard"})
+        view.run_command('output', {'console_output': content})
 
 
 class ShowJenkinsDashboardCommand(BaseJenkinsDashboardCommand):
@@ -211,6 +209,7 @@ class ShowJenkinsDashboardCommand(BaseJenkinsDashboardCommand):
         job = self.build_report[picked][0]
         cmd = Jenkins()
         job_report = cmd.get_job_report(job)
+        debug_message(job_report);
         self.render_jenkins_information(job_report)
         return
 
